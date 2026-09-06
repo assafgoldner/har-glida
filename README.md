@@ -1,6 +1,6 @@
 # 🍦 הר גלידה — ניהול ועד הגן
 
-אפליקציית React מחוברת ל-Supabase: לוגין (Google + Magic Link), הרשאות
+אפליקציית React מחוברת ל-Supabase: לוגין (אימייל + סיסמה), הרשאות
 אמיתיות (אדמין / צופה), ונתונים משותפים לכל חברות הועד.
 
 ---
@@ -10,13 +10,14 @@
 ### 1. Supabase — מסד הנתונים
 1. היכנסי ל-[supabase.com](https://supabase.com) → New Project.
 2. פתחי **SQL Editor** → הדביקי את `har-glida-schema.sql` → **Run**.
-3. **Authentication → Providers**: הפעילי **Email** (Magic Link) ו-**Google**
-   (ל-Google צריך OAuth credentials — מדריך בתוך Supabase).
-4. **Authentication → URL Configuration**: הוסיפי את כתובת האפליקציה
-   (בזמן פיתוח `http://localhost:5173`, ובפרודקשן כתובת ה-Vercel).
-5. הוסיפי את עצמך ל-`allowed_emails` (SQL Editor או Table Editor):
+3. **Authentication → Providers → Email**: ודאי שמופעל, וכבי את
+   **"Confirm email"** (אין צורך באישור — הגישה מבוקרת דרך allowed_emails).
+4. **יצירת משתמשות מראש**: Authentication → Users → **Add user** →
+   מלאי אימייל + סיסמה וסמני **Auto Confirm User**. חזרי לכל חברת ועד.
+5. לכל משתמשת, הוסיפי את המייל שלה ל-`allowed_emails` עם התפקיד:
    ```sql
    insert into allowed_emails (email, role) values ('me@gmail.com','admin');
+   insert into allowed_emails (email, role) values ('a@gmail.com','viewer');
    ```
 
 ### 2. הפרויקט — הרצה מקומית
@@ -51,7 +52,11 @@ update allowed_emails set role='admin' where email='a@gmail.com';
 -- הסרת גישה
 delete from allowed_emails where email='x@gmail.com';
 ```
-המייל = הזהות. חשבון ה-auth נוצר אוטומטית בכניסה הראשונה.
+המייל = הזהות. יוצרים משתמשות מראש (Authentication → Users → Add user,
+עם Auto Confirm). אין הרשמה עצמית.
+
+**שכחה סיסמה?** אין איפוס עצמי (זה דורש מייל). האדמין מאפס ידנית:
+Authentication → Users → בחרי את המשתמשת → Reset / Update password.
 
 ---
 
@@ -73,7 +78,7 @@ src/
   supabaseClient.js  — חיבור ל-Supabase
   db.js              — טעינת נתונים + פונקציית getRole
   sync.js            — שמירת שינויים (diff → Supabase)
-  Login.jsx          — מסך התחברות
+  Login.jsx          — מסך התחברות (אימייל + סיסמה)
   App.jsx            — האפליקציה (קופות, החזרים, תכנון, אירועים, ילדים)
   main.jsx           — auth gate (Login / App / אין גישה)
 ```
