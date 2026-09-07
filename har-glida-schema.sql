@@ -168,7 +168,19 @@ create table public.import_map (
 );
 
 -- ============================================================================
--- 3. הפעלת RLS על כל הטבלאות
+-- 3. הרשאות בסיס ל-role authenticated
+-- ----------------------------------------------------------------------------
+-- RLS ו-GRANT הן שתי שכבות נפרדות: צריך גם GRANT (גישה לטבלה) וגם policy
+-- (גישה לשורה). בלי ה-GRANTs האלה, כל גישה נחסמת עוד לפני שה-policies נבדקות.
+-- ============================================================================
+grant usage on schema public to authenticated, anon;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+-- ברירת מחדל גם לטבלאות עתידיות
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+
+-- ============================================================================
+-- 4. הפעלת RLS על כל הטבלאות
 -- ============================================================================
 alter table public.allowed_emails  enable row level security;
 alter table public.children        enable row level security;
@@ -183,7 +195,7 @@ alter table public.tasks           enable row level security;
 alter table public.import_map      enable row level security;
 
 -- ============================================================================
--- 4. מדיניות הרשאות (POLICIES)
+-- 5. מדיניות הרשאות (POLICIES)
 -- ----------------------------------------------------------------------------
 -- עיקרון: חבר ועד מאושר (is_member) יכול לקרוא הכל.
 -- כתיבה לכספים/קופות/ילדים/תשלומים/הוצאות/ייבוא — רק אדמין (is_admin).
@@ -192,6 +204,10 @@ alter table public.import_map      enable row level security;
 -- ============================================================================
 
 -- ---- allowed_emails: כל חבר רואה מי מורשה; רק אדמין מוסיף/משנה/מסיר ----
+-- קריאה-עצמית: כל משתמש מחובר יכול לקרוא את שורת ההרשאה של המייל שלו.
+-- זה שובר את בעיית ה"ביצה ותרנגולת" — כדי ש-getRole יעבוד לפני ש-is_member ידוע.
+create policy allowed_read_own on public.allowed_emails
+  for select using (email = (auth.jwt() ->> 'email'));
 create policy allowed_select on public.allowed_emails
   for select using (public.is_member());
 create policy allowed_admin_write on public.allowed_emails
@@ -270,7 +286,7 @@ create policy tasks_member_delete on public.tasks
   for delete using (public.is_member());
 
 -- ============================================================================
--- 5. נתוני התחלה (SEED)
+-- 6. נתוני התחלה (SEED)
 -- ----------------------------------------------------------------------------
 -- שנה את המייל הראשון למייל שלך כדי שתהיה האדמין הראשון.
 -- ============================================================================
