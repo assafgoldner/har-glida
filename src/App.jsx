@@ -114,11 +114,11 @@ export default function App({ session, role, onSignOut }) {
 
   const tabs = [
     { id: "funds", label: "קופות", Icon: Wallet },
-    { id: "requests", label: "החזרים", Icon: Receipt },
-    { id: "tasks", label: "משימות", Icon: ListChecks },
-    { id: "planner", label: "תכנון", Icon: Calculator },
-    { id: "calendar", label: "אירועים", Icon: CalendarDays },
     { id: "roster", label: "ילדים", Icon: Users },
+    { id: "requests", label: "החזרים", Icon: Receipt },
+    { id: "calendar", label: "אירועים", Icon: CalendarDays },
+    { id: "planner", label: "תכנון", Icon: Calculator },
+    { id: "tasks", label: "משימות", Icon: ListChecks },
   ];
   const pendingCount = db.requests.filter((r) => r.status === "pending").length;
   const openTasks = db.tasks.filter((t) => !t.done).length;
@@ -128,18 +128,18 @@ export default function App({ session, role, onSignOut }) {
       <style>{CSS}</style>
 
       {/* Header */}
-      <header style={S.header}>
+      <header className="hg-header" style={S.header}>
         <div style={S.brand}>
           <div style={S.logo}>🍦</div>
           <div>
-            <div style={S.brandName}>הר גלידה</div>
+            <div className="hg-brand-name" style={S.brandName}>הר גלידה</div>
             <div style={S.brandSub}>ניהול ועד הגן</div>
           </div>
         </div>
         <div style={S.headerRight}>
           <div style={S.totalPill}>
             <span style={S.totalLabel}>סה״כ בקופות</span>
-            <span style={S.totalVal}>{ILS(totalBalance)}</span>
+            <span className="hg-total-val" style={S.totalVal}>{ILS(totalBalance)}</span>
           </div>
           <div style={{ ...S.roleBtn, ...(isAdmin ? S.roleAdmin : {}), cursor: "default" }}
             title={session?.user?.email || ""}>
@@ -152,11 +152,11 @@ export default function App({ session, role, onSignOut }) {
       </header>
 
       {/* Tabs */}
-      <nav style={S.tabbar}>
+      <nav className="hg-tabbar" style={S.tabbar}>
         {tabs.map((t) => (
           <button key={t.id}
             onClick={() => setTab(t.id)}
-            style={{ ...S.tab, ...(tab === t.id ? S.tabActive : {}) }}>
+            className="hg-tab" style={{ ...S.tab, ...(tab === t.id ? S.tabActive : {}) }}>
             <t.Icon size={18} />
             <span>{t.label}</span>
             {t.id === "requests" && pendingCount > 0 && (
@@ -169,7 +169,7 @@ export default function App({ session, role, onSignOut }) {
         ))}
       </nav>
 
-      <main style={S.main}>
+      <main className="hg-main" style={S.main}>
         {tab === "funds" && <FundsView db={db} update={update} isAdmin={isAdmin} />}
         {tab === "requests" && <RequestsView db={db} update={update} isAdmin={isAdmin} />}
         {tab === "tasks" && <TasksView db={db} update={update} />}
@@ -231,7 +231,7 @@ function FundsView({ db, update, isAdmin }) {
           </button>
         )} />
 
-      <div style={S.fundGrid}>
+      <div className="hg-fund-grid" style={S.fundGrid}>
         {db.funds.map((f) => {
           const bal = fundBalance(f, db.children, db.payments, db.expenses);
           const collected = fundCollected(f, db.children, db.payments);
@@ -421,7 +421,7 @@ function FundDetail({ fund, db, update, isAdmin, onClose }) {
 
   return (
     <div>
-      <div style={S.detailStats}>
+      <div className="hg-detail-stats" style={S.detailStats}>
         <Stat label="יתרה" value={ILS(bal)} accent={fund.color} />
         <Stat label="נגבה" value={ILS(collected)} />
         <Stat label="הוצא" value={ILS(spent)} />
@@ -1299,7 +1299,7 @@ function PlannerView({ db }) {
         sub="הוסיפו הוצאות מתוכננות וקבלו תמונת יתרות עתידית" />
 
       <div style={S.plannerForm}>
-        <div style={S.plannerGrid}>
+        <div className="hg-planner-grid" style={S.plannerGrid}>
           <Field label="קופה">
             <select style={S.input} value={draft.fundId}
               onChange={(e) => setDraft({ ...draft, fundId: e.target.value })}>
@@ -1540,6 +1540,7 @@ function RosterView({ db, update, isAdmin }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all"); // all | paid | unpaid (across all funds)
   const [show, setShow] = useState(false);
+  const [openChild, setOpenChild] = useState(null);
 
   const isFull = (cid, f) => {
     const fee = Number(f.annualFee) || 0;
@@ -1558,10 +1559,11 @@ function RosterView({ db, update, isAdmin }) {
   const del = (id) => update((d) => {
     d.children = d.children.filter((c) => c.id !== id); return d;
   });
+  const child = db.children.find((c) => c.id === openChild);
 
   return (
     <div>
-      <SectionHead title="ילדי הגן" sub="הרשימה שאליה מחוברת הגבייה"
+      <SectionHead title="ילדי הגן" sub="לחצו על ילד לפירוט התשלומים"
         action={isAdmin && <button style={S.primaryBtn} onClick={() => setShow(true)}>
           <Plus size={16} /> ילד/ה</button>} />
 
@@ -1584,22 +1586,24 @@ function RosterView({ db, update, isAdmin }) {
         const paid = paidSomeFunds(c.id);
         return (
           <div key={c.id} style={S.rosterRow}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600 }}>{c.child}</div>
-              <div style={S.paySub}>{c.parents}</div>
-            </div>
-            <div style={S.miniDots}>
-              {db.funds.map((f) => {
-                const fee = Number(f.annualFee) || 0;
-                const p = childPaid(db.payments, c.id, f.id);
-                const st = childStatus(p, fee);
-                const bg = st === "full" ? f.color
-                  : st === "partial" ? f.color + "66" : "#e7ddd0";
-                return <span key={f.id} title={`${f.name}: ${st === "full" ? "שולם" : st === "partial" ? "חלקי" : "לא שולם"}`}
-                  style={{ ...S.dot, background: bg }} />;
-              })}
-              <span style={S.paidFrac}>{paid}/{db.funds.length}</span>
-            </div>
+            <button style={S.rosterMain} onClick={() => setOpenChild(c.id)}>
+              <div style={{ flex: 1, textAlign: "right" }}>
+                <div style={{ fontWeight: 600 }}>{c.child}</div>
+                <div style={S.paySub}>{c.parents}</div>
+              </div>
+              <div style={S.miniDots}>
+                {db.funds.map((f) => {
+                  const fee = Number(f.annualFee) || 0;
+                  const p = childPaid(db.payments, c.id, f.id);
+                  const st = childStatus(p, fee);
+                  const bg = st === "full" ? f.color
+                    : st === "partial" ? f.color + "66" : "#e7ddd0";
+                  return <span key={f.id} title={f.name}
+                    style={{ ...S.dot, background: bg }} />;
+                })}
+                <span style={S.paidFrac}>{paid}/{db.funds.length}</span>
+              </div>
+            </button>
             {isAdmin && <button style={S.iconDel} onClick={() => del(c.id)}>
               <Trash2 size={14} /></button>}
           </div>
@@ -1612,6 +1616,55 @@ function RosterView({ db, update, isAdmin }) {
           <ChildForm update={update} onDone={() => setShow(false)} />
         </Modal>
       )}
+      {child && (
+        <Modal onClose={() => setOpenChild(null)} title={child.child}>
+          <ChildDetail child={child} db={db} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function ChildDetail({ child, db }) {
+  const rows = db.funds.map((f) => {
+    const fee = Number(f.annualFee) || 0;
+    const paid = childPaid(db.payments, child.id, f.id);
+    const st = childStatus(paid, fee);
+    return { f, fee, paid, st };
+  });
+  const totalPaid = rows.reduce((s, r) => s + r.paid, 0);
+  const totalFee = rows.reduce((s, r) => s + r.fee, 0);
+
+  return (
+    <div>
+      {child.parents && <div style={S.childParents}>{child.parents}</div>}
+      <div style={S.childTotal}>
+        <span>סה״כ שולם</span>
+        <b>{ILS(totalPaid)} <span style={{ color: "#a2917d", fontWeight: 500 }}>מ־{ILS(totalFee)}</span></b>
+      </div>
+      {rows.map(({ f, fee, paid, st }) => {
+        const Icon = ICONS[f.icon] || Wallet;
+        const pct = fee > 0 ? Math.min(100, (paid / fee) * 100) : 0;
+        return (
+          <div key={f.id} style={S.childFundRow}>
+            <div style={{ ...S.childFundIcon, background: f.color + "22", color: f.color }}>
+              <Icon size={18} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={S.childFundTop}>
+                <span style={{ fontWeight: 600 }}>{f.name}</span>
+                <span style={{ ...S.childFundStatus, ...statusStyle(st) }}>
+                  {st === "full" ? "שולם" : st === "partial" ? "חלקי" : "לא שולם"}
+                </span>
+              </div>
+              <div style={S.childBarTrack}>
+                <div style={{ ...S.childBarFill, width: pct + "%", background: f.color }} />
+              </div>
+              <div style={S.childFundNums}>{ILS(paid)} מתוך {ILS(fee)}</div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1648,7 +1701,7 @@ function SectionHead({ title, sub, action }) {
   return (
     <div style={S.sectionHead}>
       <div>
-        <h2 style={S.sectionTitle}>{title}</h2>
+        <h2 className="hg-section-title" style={S.sectionTitle}>{title}</h2>
         {sub && <div style={S.sectionSub}>{sub}</div>}
       </div>
       {action}
@@ -1677,7 +1730,7 @@ function Modal({ title, children, onClose }) {
   }, [onClose]);
   return (
     <div style={S.overlay} onClick={onClose}>
-      <div style={S.modal} onClick={(e) => e.stopPropagation()}>
+      <div className="hg-modal" style={S.modal} onClick={(e) => e.stopPropagation()}>
         <div style={S.modalHead}>
           <h3 style={S.modalTitle}>{title}</h3>
           <button style={S.closeBtn} onClick={onClose}><X size={18} /></button>
@@ -1697,8 +1750,30 @@ const CSS = `
   body { margin: 0; }
   input, select, textarea, button { font-family: inherit; }
   input:focus, select:focus, textarea:focus { outline: 2px solid #E8833A55; }
-  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background: #ddd0bf; border-radius: 4px; }
+
+  /* ---- Mobile ---- */
+  @media (max-width: 640px) {
+    .hg-header { padding: 12px 14px !important; }
+    .hg-brand-name { font-size: 17px !important; }
+    .hg-total-val { font-size: 15px !important; }
+    .hg-main { padding: 16px 14px !important; }
+    .hg-tabbar { gap: 0 !important; padding: 0 !important;
+      justify-content: space-between !important; }
+    .hg-tab { flex: 1 !important; flex-direction: column !important; gap: 3px !important;
+      padding: 9px 4px !important; font-size: 11px !important; }
+    .hg-tab span { font-size: 11px !important; }
+    .hg-fund-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .hg-planner-grid { grid-template-columns: 1fr !important; }
+    .hg-detail-stats { gap: 7px !important; }
+    .hg-section-title { font-size: 19px !important; }
+    .hg-modal { max-width: 100% !important; border-radius: 18px 18px 0 0 !important; }
+  }
+  @media (max-width: 380px) {
+    .hg-fund-grid { grid-template-columns: 1fr !important; }
+    .hg-tab span { font-size: 10px !important; }
+  }
 `;
 
 const S = {
@@ -1934,6 +2009,22 @@ const S = {
     padding: "0 4px 6px" },
   rosterRow: { display: "flex", alignItems: "center", gap: 12, background: "#fff",
     border: "1px solid #f0e6d6", borderRadius: 13, padding: "11px 14px", marginBottom: 8 },
+  rosterMain: { display: "flex", alignItems: "center", gap: 12, flex: 1, background: "none",
+    border: "none", cursor: "pointer", padding: 0, textAlign: "right", fontFamily: "inherit" },
+  childParents: { color: "#a2917d", fontSize: 13.5, marginBottom: 14 },
+  childTotal: { display: "flex", justifyContent: "space-between", alignItems: "center",
+    background: "#faf4ea", borderRadius: 12, padding: "12px 14px", marginBottom: 16,
+    fontWeight: 600, fontSize: 15 },
+  childFundRow: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 0",
+    borderBottom: "1px solid #f4ece0" },
+  childFundIcon: { width: 38, height: 38, borderRadius: 11, display: "grid",
+    placeItems: "center", flexShrink: 0 },
+  childFundTop: { display: "flex", justifyContent: "space-between", alignItems: "center",
+    marginBottom: 6 },
+  childFundStatus: { fontSize: 11.5, fontWeight: 700, padding: "2px 9px", borderRadius: 20 },
+  childBarTrack: { height: 6, background: "#f2e9db", borderRadius: 3, overflow: "hidden" },
+  childBarFill: { height: "100%", borderRadius: 3, transition: "width .3s" },
+  childFundNums: { fontSize: 12.5, color: "#a2917d", marginTop: 5 },
   miniDots: { display: "flex", alignItems: "center", gap: 5 },
   dot: { width: 11, height: 11, borderRadius: "50%" },
   paidFrac: { fontSize: 12, color: "#a2917d", marginRight: 4, fontWeight: 600 },
